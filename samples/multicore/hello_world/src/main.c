@@ -163,16 +163,20 @@ ISR_DIRECT_DECLARE(egu_isr)
 	return 1;
 }
 
-// ISR_DIRECT_DECLARE(timer_isr)
-// {
-// 	printk("timer1\n");
-// 	if (REF_TIMER->EVENTS_COMPARE[1]) {
-// 		nrf_timer_event_clear(REF_TIMER, NRF_TIMER_EVENT_COMPARE1);
-// 		REF_TIMER->TASKS_CLEAR =1;
-// 		printk("timer\n");
-// 	}
-// 	return 1;
-// }
+ISR_DIRECT_DECLARE(timer_isr)
+{
+	//printk("timer1\n");
+	if (REF_TIMER->EVENTS_COMPARE[1]) {
+		nrf_timer_event_clear(REF_TIMER, NRF_TIMER_EVENT_COMPARE1);
+		debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
+		REF_TIMER->TASKS_CLEAR =1;
+		debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
+		printk("timer\n");
+
+		CLOCK->TASKS_CAL=0x1;
+	}
+	return 1;
+}
 
 void reference_timer_init(void)
 {
@@ -183,39 +187,53 @@ void reference_timer_init(void)
 	nrf_timer_prescaler_set(
 		REF_TIMER,
 		NRF_TIMER_PRESCALER_CALCULATE(NRF_TIMER_BASE_FREQUENCY_GET(REF_TIMER), 1000000));
-	// nrf_timer_shorts_enable(REF_TIMER, NRF_TIMER_SHORT_COMPARE1_CLEAR_MASK);
+	//nrf_timer_shorts_enable(REF_TIMER, NRF_TIMER_SHORT_COMPARE1_CLEAR_MASK);
 
-	// nrf_timer_cc_set(REF_TIMER, NRF_TIMER_CC_CHANNEL1, 1000000);
+	nrf_timer_cc_set(REF_TIMER, NRF_TIMER_CC_CHANNEL1, 1000000);
 
-	// /* Enable IRQ for compare event */
-	// nrf_timer_int_enable(REF_TIMER,  nrf_timer_compare_int_get(1));
+	/* Enable IRQ for compare event */
+	nrf_timer_int_enable(REF_TIMER,  NRF_TIMER_INT_COMPARE1_MASK);//nrf_timer_compare_int_get(1));
 
-	// IRQ_DIRECT_CONNECT(TIMER_IRQ, 0, timer_isr, 0);
-	// irq_enable(TIMER_IRQ);
+	IRQ_DIRECT_CONNECT(TIMER_IRQ, 0, timer_isr, 0);
+	irq_enable(TIMER_IRQ);
 }
 
 void clock_init(void)
 {
 	/* Initialize HFCLK to use in reference timer (REF_TIMER).*/
-	nrf_clock_task_trigger(CLOCK, NRF_CLOCK_TASK_HFCLKSTART);
+	/*nrf_clock_task_trigger(CLOCK, NRF_CLOCK_TASK_HFCLKSTART);
 	while (!nrf_clock_hf_is_running(CLOCK, NRF_CLOCK_HFCLK_HIGH_ACCURACY)) {
+		void arch_busy_wait(uint32_t);
+		arch_busy_wait(10);
+	}*/
+
+	CLOCK->TASKS_XOSTART = 1;
+	while (!CLOCK->EVENTS_XOSTARTED) {
 		void arch_busy_wait(uint32_t);
 		arch_busy_wait(10);
 	}
 
-	/* RTC uses LFCLK and its source is set as RC osc.*/
-	nrf_clock_task_trigger(CLOCK, NRF_CLOCK_TASK_LFCLKSTOP);
-	if (IS_ENABLED(CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC)) {
-		nrf_clock_lf_src_set(CLOCK, NRF_CLOCK_LFCLK_RC);
-	} else {
-		nrf_clock_lf_src_set(CLOCK, NRF_CLOCK_LFCLK_XTAL);
-	}
-	nrf_clock_event_clear(CLOCK, NRF_CLOCK_EVENT_LFCLKSTARTED);
-	nrf_clock_task_trigger(CLOCK, NRF_CLOCK_TASK_LFCLKSTART);
-	while (!nrf_clock_lf_is_running(CLOCK)) {
+	CLOCK->TASKS_LFCLKSTOP=1;
+	CLOCK->LFCLK.SRC=0x0;
+	CLOCK->EVENTS_LFCLKSTARTED = 0x0;
+	CLOCK->TASKS_LFCLKSTART=1;
+	while (!CLOCK->EVENTS_LFCLKSTARTED) {
 		void arch_busy_wait(uint32_t);
 		arch_busy_wait(10);
 	}
+	/* RTC uses LFCLK and its source is set as RC osc.*/
+	// nrf_clock_task_trigger(CLOCK, NRF_CLOCK_TASK_LFCLKSTOP);
+	// if (IS_ENABLED(CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC)) {
+	// 	nrf_clock_lf_src_set(CLOCK, NRF_CLOCK_LFCLK_RC);
+	// } else {
+	// 	nrf_clock_lf_src_set(CLOCK, NRF_CLOCK_LFCLK_XTAL);
+	// }
+	// nrf_clock_event_clear(CLOCK, NRF_CLOCK_EVENT_LFCLKSTARTED);
+	// nrf_clock_task_trigger(CLOCK, NRF_CLOCK_TASK_LFCLKSTART);
+	// while (!nrf_clock_lf_is_running(CLOCK)) {
+	// 	void arch_busy_wait(uint32_t);
+	// 	arch_busy_wait(10);
+	// }
 }
 
 void rtc_init(void)
@@ -232,15 +250,19 @@ void rtc_init(void)
 	nrf_rtc_int_enable(RTC, RTC_INTENSET_COMPARE);
 
 	/* Enable IRQ for tick event */
-	nrf_rtc_event_enable(RTC, RTC_EVTENSET_TICK_Msk);
-	nrf_rtc_int_enable(RTC, RTC_INTENSET_TICK_Msk);
+	// nrf_rtc_event_enable(RTC, RTC_EVTENSET_TICK_Msk);
+	// nrf_rtc_int_enable(RTC, RTC_INTENSET_TICK_Msk);
 
 	nrfx_err_t err = nrfx_gppi_channel_alloc(&rtc_clear_ppi_ch);
 	__ASSERT_NO_MSG(err == NRFX_SUCCESS);
 
+	// nrfx_gppi_channel_endpoints_setup(rtc_clear_ppi_ch,
+	// 				  nrf_egu_event_address_get(EGU, NRF_EGU_EVENT_TRIGGERED1),
+	// 				  nrf_timer_task_address_get(REF_TIMER, NRF_TIMER_TASK_CLEAR));
+
 	nrfx_gppi_channel_endpoints_setup(rtc_clear_ppi_ch,
 					  nrf_egu_event_address_get(EGU, NRF_EGU_EVENT_TRIGGERED1),
-					  nrf_timer_task_address_get(REF_TIMER, NRF_TIMER_TASK_CLEAR));
+					  nrf_rtc_task_address_get(RTC, NRF_RTC_TASK_CLEAR));
 
 	nrfx_gppi_fork_endpoint_setup(rtc_clear_ppi_ch, nrf_rtc_task_address_get(RTC, NRF_RTC_TASK_CLEAR));
 	nrfx_gppi_channels_enable(BIT(rtc_clear_ppi_ch));
@@ -271,6 +293,41 @@ void conf_gpio(uint16_t pin) {
 	GPIO->OUTCLR = (1 << pin);
 }
 
+
+#define GRTC_IRQ_GROUP 3
+#include <hal/nrf_grtc.h>
+#define GRTC_CC_CHANNEL 7
+#define GRTC_IRQ GRTC_3_IRQn
+
+ISR_DIRECT_DECLARE(grtc_isr)
+{
+	//ISR_DIRECT_PM();
+	debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
+
+	nrf_grtc_event_clear(NRF_GRTC, NRF_GRTC_EVENT_COMPARE_7);
+	uint64_t sys_cnt = nrf_grtc_sys_counter_get(NRF_GRTC);
+	nrf_grtc_sys_counter_cc_add_set(NRF_GRTC, GRTC_CC_CHANNEL, 1000000, NRF_GRTC_CC_ADD_REFERENCE_SYSCOUNTER);
+	//printk("GRTC: %lld\n", sys_cnt);
+
+	debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
+
+
+	return 0;
+}
+
+void grtc_init(void)
+{
+	/* GRTC should already be started and konfigured */
+
+	nrf_grtc_sys_counter_cc_add_set(NRF_GRTC, GRTC_CC_CHANNEL, 1000000, NRF_GRTC_CC_ADD_REFERENCE_SYSCOUNTER);
+	nrf_grtc_sys_counter_compare_event_enable(NRF_GRTC, GRTC_CC_CHANNEL);
+
+	nrf_grtc_int_enable(NRF_GRTC, NRF_GRTC_CHANNEL_INT_MASK(GRTC_CC_CHANNEL));
+
+	IRQ_DIRECT_CONNECT(GRTC_IRQ, 0, grtc_isr, 0);
+	irq_enable(GRTC_IRQ);
+}
+
 void pin_debug_init(void)
 {
 	conf_gpio(RTC_ISR_TICK_TOGGLE_PIN);
@@ -297,13 +354,16 @@ void pin_debug_init(void)
 	__ASSERT_NO_MSG(err == NRFX_SUCCESS);
 
 	/* Connect RTC->TASKS_TICK to GPIOTE->TASKS_OUT[0] to toggle configured pin */
-	nrfx_gppi_channel_endpoints_setup(rtc_ppi,
-					  nrf_rtc_event_address_get(RTC, NRF_RTC_EVENT_TICK),
-					  nrf_gpiote_task_address_get(GPIOTE, NRF_GPIOTE_TASK_OUT_0));
+	// nrfx_gppi_channel_endpoints_setup(rtc_ppi,
+	// 				  nrf_rtc_event_address_get(RTC, NRF_RTC_EVENT_TICK),
+	// 				  nrf_gpiote_task_address_get(GPIOTE, NRF_GPIOTE_TASK_OUT_0));
 
 	nrfx_gppi_channel_endpoints_setup(rtc_ppi,
 					  nrf_timer_event_address_get(REF_TIMER, NRF_TIMER_EVENT_COMPARE1),
 					  nrf_gpiote_task_address_get(GPIOTE, NRF_GPIOTE_TASK_OUT_0));
+ 	// nrfx_gppi_channel_endpoints_setup(rtc_ppi,
+	// 				  nrf_grtc_event_address_get(NRF_GRTC, NRF_GRTC_EVENT_COMPARE_7),
+	// 				  nrf_gpiote_task_address_get(GPIOTE, NRF_GPIOTE_TASK_OUT_0));
 
 	nrfx_gppi_channels_enable(BIT(rtc_ppi));
 
@@ -311,19 +371,22 @@ void pin_debug_init(void)
 	nrf_gpiote_subscribe_set(GPIOTE, NRF_GPIOTE_TASK_OUT_2, rtc_clear_ppi_ch);
 }
 
+
 void test_rtc()
 {
 	/* Initialize HFCLK and LFCLK.*/
 	clock_init();
 
 	/* Initialize RTC to create compare event on each seconds.*/
-	rtc_init();
+	//rtc_init();
 
 	/* Initialize a reference timer(REF_TIMER) to compare with RTC timing.*/
 	reference_timer_init();
 
 	/* Initialize debug pin toggle to check timings for RTC compare events.*/
 	pin_debug_init();
+
+	//grtc_init();
 
 	debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
 	k_msleep(2);
@@ -338,37 +401,38 @@ void test_rtc()
 	uint32_t counter;
 	uint32_t ref_time_local;
 
-	for(int idx = 0; idx < 10; idx++) {
-		debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
-		REF_TIMER->TASKS_CAPTURE[1] = 1;
-		ref_time_local = REF_TIMER->CC[1];
-		RTC->TASKS_CAPTURE[2] = 1;
-		//counter = RTC->COUNTER;
-		rtc_time = RTC->CC[2];
-		debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
+	// for(int idx = 0; idx < 10; idx++) {
+	// 	debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
+	// 	REF_TIMER->TASKS_CAPTURE[1] = 1;
+	// 	ref_time_local = REF_TIMER->CC[1];
+	// 	RTC->TASKS_CAPTURE[2] = 1;
+	// 	//counter = RTC->COUNTER;
+	// 	rtc_time = RTC->CC[2];
+	// 	debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
 
-		printk("ref time aft. start[%d]: %d, rtc: %d, coutner %d\n", idx, ref_time_local, rtc_time, counter);
-	}
+	// 	printk("ref time aft. start[%d]: %d, rtc: %d, coutner %d\n", idx, ref_time_local, rtc_time, counter);
+	// }
 
-	debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
-	k_msleep(1);
-	debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
-	EGU->TASKS_TRIGGER[1]=1;
+	// debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
+	// k_msleep(1);
+	// debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
+	// EGU->TASKS_TRIGGER[1]=1;
 
-	for(int idx = 0; idx < 10; idx++) {
-		debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
-		REF_TIMER->TASKS_CAPTURE[1] = 1;
-		ref_time_local = REF_TIMER->CC[1];
-		RTC->TASKS_CAPTURE[2] = 1;
-		//counter = RTC->COUNTER;
-		rtc_time = RTC->CC[2];
-		debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
+	// for(int idx = 0; idx < 10; idx++) {
+	// 	debug_pin_set(RTC_CC_READ_TOGGLE_PIN);
+	// 	REF_TIMER->TASKS_CAPTURE[1] = 1;
+	// 	ref_time_local = REF_TIMER->CC[1];
+	// 	RTC->TASKS_CAPTURE[2] = 1;
+	// 	//counter = RTC->COUNTER;
+	// 	rtc_time = RTC->CC[2];
+	// 	debug_pin_clear(RTC_CC_READ_TOGGLE_PIN);
 
-		printk("ref time aft. clear[%d]: %d, rtc: %d, coutner %d\n", idx, ref_time_local, rtc_time, counter);
-	}
+	// 	printk("ref time aft. clear[%d]: %d, rtc: %d, coutner %d\n", idx, ref_time_local, rtc_time, counter);
+	// }
 
-	REF_TIMER->TASKS_CAPTURE[1] = 1;
-	ref_time_local = REF_TIMER->CC[1];
+	k_msleep(2);
+	REF_TIMER->TASKS_CAPTURE[2] = 1;
+	ref_time_local = REF_TIMER->CC[2];
 	printk("end ref time: %d\n", ref_time_local);
 }
 
