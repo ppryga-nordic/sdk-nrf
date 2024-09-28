@@ -73,7 +73,7 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
 		       addr, phy_info->tx_phy, phy_info->rx_phy);
 	}
 
-	dk_set_led_on(CON_STATUS_LED);
+	//dk_set_led_on(CON_STATUS_LED);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -82,7 +82,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 
 	k_work_submit(&start_advertising_worker);
 
-	dk_set_led_off(CON_STATUS_LED);
+	//dk_set_led_off(CON_STATUS_LED);
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
@@ -161,10 +161,11 @@ static void hrs_notify(void)
 static void notify_work_handler(struct k_work *work)
 {
 	/* Services data simulation. */
-	hrs_notify();
-	bas_notify();
+	// hrs_notify();
+	// bas_notify();
 
 	k_work_reschedule(k_work_delayable_from_work(work), K_MSEC(NOTIFY_INTERVAL));
+	k_sleep(K_MSEC(NOTIFY_INTERVAL));
 }
 
 int main(void)
@@ -174,11 +175,11 @@ int main(void)
 
 	printk("Starting Bluetooth Peripheral HR coded example\n");
 
-	err = dk_leds_init();
-	if (err) {
-		printk("LEDs init failed (err %d)\n", err);
-		return 0;
-	}
+	// err = dk_leds_init();
+	// if (err) {
+	// 	printk("LEDs init failed (err %d)\n", err);
+	// 	return 0;
+	// }
 
 	err = bt_enable(NULL);
 	if (err) {
@@ -198,7 +199,7 @@ int main(void)
 	k_work_schedule(&notify_work, K_NO_WAIT);
 
 	for (;;) {
-		dk_set_led(RUN_STATUS_LED, (++led_status) % 2);
+		//dk_set_led(RUN_STATUS_LED, (++led_status) % 2);
 		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
 	}
 }
