@@ -106,6 +106,10 @@ static struct bt_gatt_dm_cb discover_hrs_cb = {
 	.error_found = discover_hrs_error_found,
 };
 
+#define BT_LE_CONN_PARAM_TMP BT_LE_CONN_PARAM(160, \
+						  160, \
+						  0, 400)
+
 static void scan_filter_match(struct bt_scan_device_info *device_info,
 			      struct bt_scan_filter_match *filter_match,
 			      bool connectable)
@@ -126,11 +130,11 @@ static void scan_filter_match(struct bt_scan_device_info *device_info,
 
 	conn_params = BT_CONN_LE_CREATE_PARAM(
 			BT_CONN_LE_OPT_CODED | BT_CONN_LE_OPT_NO_1M,
-			BT_GAP_SCAN_FAST_INTERVAL,
-			BT_GAP_SCAN_FAST_INTERVAL);
+			160,//BT_GAP_SCAN_FAST_INTERVAL,
+			160);//BT_GAP_SCAN_FAST_INTERVAL);
 
 	err = bt_conn_le_create(device_info->recv_info->addr, conn_params,
-				BT_LE_CONN_PARAM_DEFAULT,
+				BT_LE_CONN_PARAM_TMP,
 				&default_conn);
 	if (err) {
 		printk("Create conn failed (err %d)\n", err);
