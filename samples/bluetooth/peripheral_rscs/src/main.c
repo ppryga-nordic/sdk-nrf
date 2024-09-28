@@ -254,8 +254,8 @@ static const struct bt_data ad[] = {
 };
 
 #define BT_LE_ADV_CONN BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONNECTABLE, \
-				       BT_GAP_PER_ADV_SLOW_INT_MIN*2, \
-				       BT_GAP_PER_ADV_SLOW_INT_MAX*2, NULL)
+				       BT_GAP_PER_ADV_SLOW_INT_MIN, \
+				       BT_GAP_PER_ADV_SLOW_INT_MAX, NULL)
 
 #pragma GCC push_options
 #pragma GCC optimize("-O0")
@@ -270,7 +270,7 @@ int main(void)
 	printk("Starting Running Speed and Cadence peripheral example\n");
 #endif /* CONFIG_SERIAL */
 
-	//err = dk_leds_init();
+//  err = dk_leds_init();
 // 	if (err) {
 // #if IS_ENABLED(CONFIG_SERIAL)
 // 		printk("LEDs init failed (err %d)\n", err);
@@ -278,28 +278,23 @@ int main(void)
 // 		return 0;
 // 	}
 
-// 	if (IS_ENABLED(CONFIG_BT_RSCS_SECURITY_ENABLED)) {
-// 		err = bt_conn_auth_cb_register(&conn_auth_callbacks);
-// 		if (err) {
-// #if IS_ENABLED(CONFIG_SERIAL)
-// 			printk("Failed to register authorization callbacks.\n");
-// #endif /* CONFIG_SERIAL */
-// 			return 0;
-// 		}
+	if (IS_ENABLED(CONFIG_BT_RSCS_SECURITY_ENABLED)) {
+		err = bt_conn_auth_cb_register(&conn_auth_callbacks);
+		if (err) {
+#if IS_ENABLED(CONFIG_SERIAL)
+			printk("Failed to register authorization callbacks.\n");
+#endif /* CONFIG_SERIAL */
+			return 0;
+		}
 
-// 		err = bt_conn_auth_info_cb_register(&conn_auth_info_callbacks);
-// 		if (err) {
-// #if IS_ENABLED(CONFIG_SERIAL)
-// 			printk("Failed to register authorization info callbacks.\n");
-// #endif /* CONFIG_SERIAL */
-// 			return 0;
-// 		}
-// 	}
-
-	//while(wait);
-	//k_sleep(K_FOREVER);
-	//k_msleep(10000);
-	printk("back\n");
+		err = bt_conn_auth_info_cb_register(&conn_auth_info_callbacks);
+		if (err) {
+#if IS_ENABLED(CONFIG_SERIAL)
+			printk("Failed to register authorization info callbacks.\n");
+#endif /* CONFIG_SERIAL */
+			return 0;
+		}
+	}
 
 	err = bt_enable(NULL);
 	if (err) {
@@ -313,41 +308,42 @@ int main(void)
 // 	printk("Bluetooth initialized\n");
 // #endif /* CONFIG_SERIAL */
 
-// 	if (IS_ENABLED(CONFIG_SETTINGS)) {
-// 		settings_load();
-// 	}
+	if (IS_ENABLED(CONFIG_SETTINGS)) {
+		settings_load();
+	}
 
-// 	struct bt_rscs_init_params rscs_init = {0};
+	struct bt_rscs_init_params rscs_init = {0};
 
-// 	rscs_init.features.inst_stride_len = 1;
-// 	rscs_init.features.multi_sensor_loc = 1;
-// 	rscs_init.features.sensor_calib_proc = 1;
-// 	rscs_init.features.total_distance = 1;
-// 	rscs_init.features.walking_or_running = 1;
+	rscs_init.features.inst_stride_len = 1;
+	rscs_init.features.multi_sensor_loc = 1;
+	rscs_init.features.sensor_calib_proc = 1;
+	rscs_init.features.total_distance = 1;
+	rscs_init.features.walking_or_running = 1;
 
-// 	rscs_init.supported_locations.other = 1;
-// 	rscs_init.supported_locations.top_of_shoe = 1;
-// 	rscs_init.supported_locations.in_shoe = 1;
-// 	rscs_init.supported_locations.hip = 1;
+	rscs_init.supported_locations.other = 1;
+	rscs_init.supported_locations.top_of_shoe = 1;
+	rscs_init.supported_locations.in_shoe = 1;
+	rscs_init.supported_locations.hip = 1;
 
-// 	rscs_init.location = RSC_LOC_HIP;
+	rscs_init.location = RSC_LOC_HIP;
 
-// 	rscs_init.cp_cb = &control_point_cb;
-// 	rscs_init.evt_handler = evt_handler;
+	rscs_init.cp_cb = &control_point_cb;
+	rscs_init.evt_handler = evt_handler;
 
-// 	err = bt_rscs_init(&rscs_init);
-// 	if (err) {
-// #if IS_ENABLED(CONFIG_SERIAL)
-// 		printk("Failed to init RSCS (err %d)\n", err);
-// #endif /* CONFIG_SERIAL */
-// 		return 0;
-// 	}
+	err = bt_rscs_init(&rscs_init);
+	if (err) {
+#if IS_ENABLED(CONFIG_SERIAL)
+		printk("Failed to init RSCS (err %d)\n", err);
+#endif /* CONFIG_SERIAL */
+		return 0;
+	}
+
+#if IS_ENABLED(CONFIG_SERIAL)
 	printk("start adv\n");
+#endif /* CONFIG_SERIAL */
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), NULL, 0);
 	if (err) {
-		printk("start adv failed\n");
-
 #if IS_ENABLED(CONFIG_SERIAL)
 		printk("Advertising failed to start (err %d)\n", err);
 #endif /* CONFIG_SERIAL */
@@ -359,14 +355,15 @@ int main(void)
 #endif /* CONFIG_SERIAL */
 
 	for (;;) {
+#if IS_ENABLED(CONFIG_SERIAL)
 		printk("Loop\n");
-		k_msleep(2000);
-
+#endif /* CONFIG_SERIAL */
+	
 	// 	//dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
-	// 	k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+	 	k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
 
-	// 	rsc_simulation(&measurement);
-	// 	bt_rscs_measurement_send(current_conn, &measurement);
+	 	rsc_simulation(&measurement);
+	 	bt_rscs_measurement_send(current_conn, &measurement);
 	}
 }
 #pragma GCC pop_options

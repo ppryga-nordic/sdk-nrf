@@ -142,6 +142,7 @@
 	owned-channels = <0 1 2 3>;
 };
 
-/*&uart135 {
+&uart135 {
  	status = "disabled";
- };*/
+ };
+
