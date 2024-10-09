@@ -42,9 +42,11 @@ static void m_update_latency_request(uint32_t lat_value_us)
 		m_prev_lat_value_us = lat_value_us;
 	}
 }
-
+#include <hal/nrf_gpio.h>
 void mpsl_pm_utils_work_handler(void)
 {
+	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(0, 5));
+
 	mpsl_pm_params_t params	= {0};
 	bool pm_param_valid = mpsl_pm_params_get(&params);
 
@@ -98,6 +100,8 @@ void mpsl_pm_utils_work_handler(void)
 		__ASSERT(false, "MPSL PM is in an undefined state.");
 	}
 	m_pm_prev_flag_value = params.cnt_flag;
+
+	nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(0, 5));
 }
 
 static void m_work_handler(struct k_work *work)

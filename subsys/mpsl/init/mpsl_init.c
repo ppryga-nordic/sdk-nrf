@@ -26,7 +26,7 @@
 #endif
 
 #if IS_ENABLED(CONFIG_MPSL_USE_ZEPHYR_PM)
-#include <pm/mpsl_pm_utils.h>
+#include <mpsl/mpsl_pm_utils.h>
 #endif
 
 LOG_MODULE_REGISTER(mpsl_init, CONFIG_MPSL_LOG_LEVEL);
@@ -165,9 +165,12 @@ BUILD_ASSERT(MPSL_TIMESLOT_SESSION_COUNT <= MPSL_TIMESLOT_CONTEXT_COUNT_MAX,
 static uint8_t __aligned(4) timeslot_context[TIMESLOT_MEM_SIZE];
 #endif
 
+#include <hal/nrf_gpio.h>
 static void mpsl_low_prio_irq_handler(const void *arg)
 {
+	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(0, 4));
 	mpsl_work_submit(&mpsl_low_prio_work);
+	nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(0, 4));
 }
 
 static void mpsl_low_prio_work_handler(struct k_work *item)
