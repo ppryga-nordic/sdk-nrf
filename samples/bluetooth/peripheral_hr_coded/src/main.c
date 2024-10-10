@@ -90,13 +90,15 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.disconnected = disconnected,
 };
 
+#if defined(CONFIG_BT_EXT_ADV)
 static int create_advertising_coded(void)
 {
 	int err;
+
 	struct bt_le_adv_param param =
-		BT_LE_ADV_PARAM_INIT(BT_LE_ADV_OPT_CONNECTABLE |
+		BT_LE_ADV_PARAM_INIT(BT_LE_ADV_OPT_CONNECTABLE /*|
 				     BT_LE_ADV_OPT_EXT_ADV |
-				     BT_LE_ADV_OPT_CODED,
+				     BT_LE_ADV_OPT_CODED*/,
 				     BT_GAP_ADV_FAST_INT_MIN_2,
 				     BT_GAP_ADV_FAST_INT_MAX_2,
 				     NULL);
@@ -117,11 +119,13 @@ static int create_advertising_coded(void)
 
 	return 0;
 }
+#endif /* CONFIG_BT_EXT_ADV */
 
 static void start_advertising_coded(struct k_work *work)
 {
 	int err;
 
+#if defined(CONFIG_BT_EXT_ADV)
 	err = bt_le_ext_adv_start(adv, BT_LE_EXT_ADV_START_DEFAULT);
 	if (err) {
 		printk("Failed to start advertising set (err %d)\n", err);
@@ -129,6 +133,21 @@ static void start_advertising_coded(struct k_work *work)
 	}
 
 	printk("Advertiser %p set started\n", adv);
+#else
+	struct bt_le_adv_param param =
+		BT_LE_ADV_PARAM_INIT(BT_LE_ADV_OPT_CONNECTABLE,
+				     BT_GAP_ADV_FAST_INT_MIN_2,
+				     BT_GAP_ADV_FAST_INT_MAX_2,
+				     NULL);
+
+	err = bt_le_adv_start(&param, ad, ARRAY_SIZE(ad), NULL, 0);
+		if (err) {
+			printk("Advertising failed to start (err %d)\n", err);
+			return 0;
+		}
+
+	printk("Advertiser set started\n");
+#endif /* CONFIG_BT_EXT_ADV */
 }
 
 static void bas_notify(void)
@@ -161,11 +180,11 @@ static void hrs_notify(void)
 static void notify_work_handler(struct k_work *work)
 {
 	/* Services data simulation. */
-	// hrs_notify();
-	// bas_notify();
+	//hrs_notify();
+	//bas_notify();
 
+	//k_sleep(K_MSEC(NOTIFY_INTERVAL));
 	k_work_reschedule(k_work_delayable_from_work(work), K_MSEC(NOTIFY_INTERVAL));
-	k_sleep(K_MSEC(NOTIFY_INTERVAL));
 }
 
 int main(void)
@@ -189,17 +208,19 @@ int main(void)
 
 	printk("Bluetooth initialized\n");
 
+#if defined(CONFIG_BT_EXT_ADV)
 	err = create_advertising_coded();
 	if (err) {
 		printk("Advertising failed to create (err %d)\n", err);
 		return 0;
 	}
+#endif /* CONFIG_BT_EXT_ADV */
 
 	k_work_submit(&start_advertising_worker);
-	k_work_schedule(&notify_work, K_NO_WAIT);
+	//k_work_schedule(&notify_work, K_NO_WAIT);
 
 	for (;;) {
 		//dk_set_led(RUN_STATUS_LED, (++led_status) % 2);
-		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+		k_sleep(K_FOREVER);//K_MSEC(RUN_LED_BLINK_INTERVAL));
 	}
 }
