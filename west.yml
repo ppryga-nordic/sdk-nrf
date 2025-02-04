@@ -18,6 +18,8 @@ manifest:
   remotes:
     # nRF Connect SDK GitHub organization.
     # NCS repositories are hosted here.
+    - name: ppryga-nordic
+      url-base: https://github.com/ppryga-nordic
     - name: ncs
       url-base: https://github.com/nrfconnect
     # Third-party repository sources:
@@ -69,7 +71,8 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
       repo-path: sdk-zephyr
-      revision: f5efb381b8af563600f327c2273b117d0ef7f785
+      remote: ppryga-nordic
+      revision: b00a1445d2ddfde9b216f799dbe7a6509d135669
       import:
         # In addition to the zephyr repository itself, NCS also
         # imports the contents of zephyr/west.yml at the above
