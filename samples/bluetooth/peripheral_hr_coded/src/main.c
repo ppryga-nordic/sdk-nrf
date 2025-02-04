@@ -22,7 +22,9 @@
 #include <zephyr/bluetooth/services/bas.h>
 #include <zephyr/bluetooth/services/hrs.h>
 
+#if !defined(CONFIG_PM)
 #include <dk_buttons_and_leds.h>
+#endif /* CONFIG_PM */
 
 #define DEVICE_NAME             CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN         (sizeof(DEVICE_NAME) - 1)
@@ -66,14 +68,15 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
 	if (err) {
 		printk("Failed to get connection info (err %d)\n", err);
 	} else {
-		const struct bt_conn_le_phy_info *phy_info;
-		phy_info = info.le.phy;
+	// 	const struct bt_conn_le_phy_info *phy_info;
+	// 	phy_info = info.le.phy;
 
-		printk("Connected: %s, tx_phy %u, rx_phy %u\n",
-		       addr, phy_info->tx_phy, phy_info->rx_phy);
-	}
-
+	// 	printk("Connected: %s, tx_phy %u, rx_phy %u\n",
+	// 	       addr, phy_info->tx_phy, phy_info->rx_phy);
+	 }
+#if !defined(CONFIG_PM)
 	dk_set_led_on(CON_STATUS_LED);
+#endif /* CONFIG_PM */
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -81,8 +84,9 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
 
 	k_work_submit(&start_advertising_worker);
-
+#if !defined(CONFIG_PM)
 	dk_set_led_off(CON_STATUS_LED);
+#endif /* CONFIG_PM */
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
@@ -94,11 +98,11 @@ static int create_advertising_coded(void)
 {
 	int err;
 	struct bt_le_adv_param param =
-		BT_LE_ADV_PARAM_INIT(BT_LE_ADV_OPT_CONNECTABLE |
+		BT_LE_ADV_PARAM_INIT(BT_LE_ADV_OPT_CONNECTABLE /*|
 				     BT_LE_ADV_OPT_EXT_ADV |
-				     BT_LE_ADV_OPT_CODED,
-				     BT_GAP_ADV_FAST_INT_MIN_2,
-				     BT_GAP_ADV_FAST_INT_MAX_2,
+				     BT_LE_ADV_OPT_CODED*/,
+				     BT_GAP_PER_ADV_FAST_INT_MIN_2*2,//BT_GAP_ADV_SLOW_INT_MIN,
+				     BT_GAP_PER_ADV_FAST_INT_MIN_2*2,//BT_GAP_ADV_SLOW_INT_MAX,
 				     NULL);
 
 	err = bt_le_ext_adv_create(&param, NULL, &adv);
@@ -173,12 +177,13 @@ int main(void)
 	int err;
 
 	printk("Starting Bluetooth Peripheral HR coded example\n");
-
+#if !defined(CONFIG_PM)
 	err = dk_leds_init();
 	if (err) {
 		printk("LEDs init failed (err %d)\n", err);
 		return 0;
 	}
+#endif /* CONFIG_PM */
 
 	err = bt_enable(NULL);
 	if (err) {
@@ -195,10 +200,14 @@ int main(void)
 	}
 
 	k_work_submit(&start_advertising_worker);
-	k_work_schedule(&notify_work, K_NO_WAIT);
+	//k_work_schedule(&notify_work, K_NO_WAIT);
 
 	for (;;) {
+#if !defined(CONFIG_PM)
 		dk_set_led(RUN_STATUS_LED, (++led_status) % 2);
-		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+#endif /* CONFIG_PM */
+
+		//k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+		k_sleep(K_FOREVER);
 	}
 }

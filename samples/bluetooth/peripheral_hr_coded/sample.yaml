@@ -14,3 +14,48 @@ tests:
     platform_allow: nrf52840dk/nrf52840 nrf5340dk/nrf5340/cpuapp nrf54l15dk/nrf54l15/cpuapp
       nrf54h20dk/nrf54h20/cpuapp
     tags: bluetooth ci_build sysbuild
+  
+  sample.bluetooth.peripheral_hr_coded.pm_enabled.mram_latency_off:
+    sysbuild: true
+    build_only: true
+    platform_allow:
+      - nrf54h20dk/nrf54h20/cpuapp
+    integration_platforms:
+      - nrf54h20dk/nrf54h20/cpuapp
+    extra_args:
+      CONFIG_PM=y CONFIG_PM_S2RAM=y CONFIG_POWEROFF=y CONFIG_PM_S2RAM_CUSTOM_MARKING=y
+      CONFIG_CONSOLE=n CONFIG_UART_CONSOLE=n CONFIG_SERIAL=n CONFIG_GPIO=n CONFIG_BOOT_BANNER=n
+      ipc_radio_CONFIG_PM=y ipc_radio_CONFIG_POWEROFF=y ipc_radio_CONFIG_CONSOLE=n
+      ipc_radio_CONFIG_UART_CONSOLE=n ipc_radio_CONFIG_SERIAL=n ipc_radio_CONFIG_GPIO=n
+      ipc_radio_CONFIG_BOOT_BANNER=n ipc_radio_CONFIG_MRAM_LATENCY_AUTO_REQ=n
+    tags: bluetooth ci_build sysbuild
+
+  sample.bluetooth.peripheral_hr_coded.pm_enabled.mram_latency_on:
+    sysbuild: true
+    build_only: true
+    platform_allow:
+      - nrf54h20dk/nrf54h20/cpuapp
+    integration_platforms:
+      - nrf54h20dk/nrf54h20/cpuapp
+    extra_args:
+      CONFIG_PM=y CONFIG_PM_S2RAM=y CONFIG_POWEROFF=y CONFIG_PM_S2RAM_CUSTOM_MARKING=y
+      CONFIG_CONSOLE=n CONFIG_UART_CONSOLE=n CONFIG_SERIAL=n CONFIG_GPIO=n CONFIG_BOOT_BANNER=n
+      ipc_radio_CONFIG_PM=y ipc_radio_CONFIG_POWEROFF=y ipc_radio_CONFIG_CONSOLE=n
+      ipc_radio_CONFIG_UART_CONSOLE=n ipc_radio_CONFIG_SERIAL=n ipc_radio_CONFIG_GPIO=n
+      ipc_radio_CONFIG_BOOT_BANNER=n
+    tags: bluetooth ci_build sysbuild
+
+  sample.bluetooth.peripheral_hr_coded.pm_enabled.no_pm_radio:
+    sysbuild: true
+    build_only: true
+    platform_allow:
+      - nrf54h20dk/nrf54h20/cpuapp
+    integration_platforms:
+      - nrf54h20dk/nrf54h20/cpuapp
+    extra_args:
+      CONFIG_PM=y CONFIG_PM_S2RAM=y CONFIG_POWEROFF=y CONFIG_PM_S2RAM_CUSTOM_MARKING=y
+      CONFIG_CONSOLE=n CONFIG_UART_CONSOLE=n CONFIG_SERIAL=n CONFIG_GPIO=n CONFIG_BOOT_BANNER=n
+      ipc_radio_CONFIG_CONSOLE=n
+      ipc_radio_CONFIG_UART_CONSOLE=n ipc_radio_CONFIG_SERIAL=n ipc_radio_CONFIG_GPIO=n
+      ipc_radio_CONFIG_BOOT_BANNER=n ipc_radio_CONFIG_MRAM_LATENCY_AUTO_REQ=n
+    tags: bluetooth ci_build sysbuild

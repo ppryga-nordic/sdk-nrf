@@ -127,7 +127,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 	current_conn = bt_conn_ref(conn);
 
-	dk_set_led_on(CON_STATUS_LED);
+	//dk_set_led_on(CON_STATUS_LED);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -139,7 +139,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		current_conn = NULL;
 	}
 
-	dk_set_led_off(CON_STATUS_LED);
+	//dk_set_led_off(CON_STATUS_LED);
 }
 
 #ifdef CONFIG_BT_RSCS_SECURITY_ENABLED
@@ -232,11 +232,11 @@ int main(void)
 
 	printk("Starting Running Speed and Cadence peripheral example\n");
 
-	err = dk_leds_init();
-	if (err) {
-		printk("LEDs init failed (err %d)\n", err);
-		return 0;
-	}
+	// err = dk_leds_init();
+	// if (err) {
+	// 	printk("LEDs init failed (err %d)\n", err);
+	// 	return 0;
+	// }
 
 	if (IS_ENABLED(CONFIG_BT_RSCS_SECURITY_ENABLED)) {
 		err = bt_conn_auth_cb_register(&conn_auth_callbacks);
@@ -297,8 +297,8 @@ int main(void)
 	printk("Advertising successfully started\n");
 
 	for (;;) {
-		dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
-		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+		//dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
+		k_sleep(K_MSEC(1/*RUN_LED_BLINK_INTERVAL*/));
 
 		rsc_simulation(&measurement);
 		bt_rscs_measurement_send(current_conn, &measurement);
