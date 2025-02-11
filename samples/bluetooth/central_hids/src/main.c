@@ -269,9 +269,17 @@ static void scan_init(void)
 {
 	int err;
 
+	struct bt_le_scan_param scan_param = {
+		.type     = BT_LE_SCAN_TYPE_ACTIVE,
+		//.interval = BT_GAP_SCAN_FAST_INTERVAL,
+		.interval = BT_GAP_ADV_FAST_INT_MAX_2,
+		.window   = BT_GAP_SCAN_FAST_WINDOW,
+		.options  = BT_LE_SCAN_OPT_CODED | BT_LE_SCAN_OPT_NO_1M
+	};
+
 	struct bt_scan_init_param scan_init = {
 		.connect_if_match = 1,
-		.scan_param = NULL,
+		.scan_param = &scan_param,
 		.conn_param = BT_LE_CONN_PARAM_DEFAULT
 	};
 
