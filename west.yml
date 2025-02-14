@@ -18,6 +18,8 @@ manifest:
   remotes:
     # nRF Connect SDK GitHub organization.
     # NCS repositories are hosted here.
+    - name: ppryga-nordic
+      url-base: https://github.com/ppryga-nordic
     - name: ncs
       url-base: https://github.com/nrfconnect
     # Third-party repository sources:
@@ -65,8 +67,9 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/introduction/index.html
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
+      remote: ppryga-nordic
       repo-path: sdk-zephyr
-      revision: 7fe2732d7bee0b6825fc30871e95c2a72e641475
+      revision: 4d849d915d935a220b5df43706991b3f29c8aaf8
       import:
         # In addition to the zephyr repository itself, NCS also
         # imports the contents of zephyr/west.yml at the above
@@ -183,14 +186,14 @@ manifest:
       # Only for internal Nordic development
       repo-path: dragoon.git
       remote: dragoon
-      revision: 5fdd684412a81effe442bbce0401a00ddc9be520
+      revision: 7d2114cde9ba6244d670b685d64225eb8f7a6c4f
       submodules: true
       groups:
         - dragoon
     - name: cjson
       repo-path: sdk-cjson
       path: modules/lib/cjson
-      revision: c6af068b7f05207b28d68880740e4b9ec1e4b50a
+      revision: 6d12f6264e3dca7ddc1acbd4a80ea6d96e48240c
       userdata:
         ncs:
           upstream-url: https://github.com/DaveGamble/cJSON
