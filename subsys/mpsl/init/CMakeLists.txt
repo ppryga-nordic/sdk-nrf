@@ -7,3 +7,5 @@
 zephyr_library()
 
 zephyr_library_sources(mpsl_init.c)
+
+zephyr_code_relocate(FILES mpsl_init.c LOCATION RAM)
