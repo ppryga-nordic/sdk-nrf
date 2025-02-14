@@ -127,7 +127,9 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 	current_conn = bt_conn_ref(conn);
 
+#if !defined(CONFIG_PM)
 	dk_set_led_on(CON_STATUS_LED);
+#endif /* !CONFIG_PM */
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -139,7 +141,9 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		current_conn = NULL;
 	}
 
+#if !defined(CONFIG_PM)
 	dk_set_led_off(CON_STATUS_LED);
+#endif /* !CONFIG_PM */
 }
 
 #ifdef CONFIG_BT_RSCS_SECURITY_ENABLED
@@ -228,15 +232,18 @@ static const struct bt_data ad[] = {
 int main(void)
 {
 	int err;
+#if !defined(CONFIG_PM)
 	uint32_t blink_status = 0;
-
+#endif /* CONFIG_PM */
 	printk("Starting Running Speed and Cadence peripheral sample\n");
 
+#if !defined(CONFIG_PM)
 	err = dk_leds_init();
 	if (err) {
 		printk("LEDs init failed (err %d)\n", err);
 		return 0;
 	}
+#endif /* !CONFIG_PM */
 
 	if (IS_ENABLED(CONFIG_BT_RSCS_SECURITY_ENABLED)) {
 		err = bt_conn_auth_cb_register(&conn_auth_callbacks);
@@ -288,7 +295,10 @@ int main(void)
 		return 0;
 	}
 
-	err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_2, ad, ARRAY_SIZE(ad), NULL, 0);
+	/* Use advertising interval longer than 100ms to allow radio core to suspend to idle */
+	err = bt_le_adv_start(BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MAX_2,
+										  BT_GAP_ADV_FAST_INT_MAX_2, NULL),
+						  ad, ARRAY_SIZE(ad), NULL, 0);
 	if (err) {
 		printk("Advertising failed to start (err %d)\n", err);
 		return 0;
@@ -297,7 +307,10 @@ int main(void)
 	printk("Advertising successfully started\n");
 
 	for (;;) {
+#if !defined(CONFIG_PM)
 		dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
+#endif /* !CONFIG_PM */
+
 		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
 
 		rsc_simulation(&measurement);
