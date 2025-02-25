@@ -35,6 +35,11 @@ static struct
 	uint8_t raw_event[BT_BUF_EVT_RX_SIZE];
 } cmd_complete_or_status;
 
+static struct
+{
+	bool occurred; /**< Set in only one execution context */
+	uint8_t raw_event[BT_BUF_EVT_RX_SIZE];
+} cmd_complete_vs;
 #if defined(CONFIG_BT_CTLR_SDC_PAWR_SYNC)
 static bool padv_response_data_cmd_pending;
 #endif
@@ -97,6 +102,33 @@ static void encode_command_status(uint8_t * const event,
 	evt_data->status = status_code;
 	evt_data->ncmd = 1;
 	evt_data->opcode = hci_opcode;
+}
+
+#define BT_HCI_EVT_VS_COMMAND_STATUS 0x7
+struct bt_hci_evt_vs_command_status {
+	struct bt_hci_evt_vs evt;
+	struct bt_hci_evt_cmd_status status;
+	uint8_t  cmd_length;
+	uint8_t  cmd_data[];
+} __packed;
+
+static void encode_vs_command_status(uint8_t * const event,
+	uint8_t *hci_cmd_in, uint8_t status_code)
+{
+	struct bt_hci_evt_hdr *evt_hdr = (struct bt_hci_evt_hdr *)event;
+	struct bt_hci_evt_vs_command_status *evt_data =
+		(struct bt_hci_evt_vs_command_status *)&event[BT_HCI_EVT_HDR_SIZE];
+	struct bt_hci_cmd_hdr *cmd_hdr = (struct bt_hci_cmd_hdr*)hci_cmd_in;
+
+	evt_hdr->evt = BT_HCI_EVT_VENDOR;
+	evt_hdr->len = sizeof(struct bt_hci_evt_vs_command_status) + cmd_hdr->param_len + BT_HCI_CMD_HDR_SIZE;
+
+	evt_data->evt.subevent = BT_HCI_EVT_VS_COMMAND_STATUS;
+	evt_data->status.status = status_code;
+	evt_data->status.ncmd = 1;
+	evt_data->status.opcode = cmd_hdr->opcode;
+	evt_data->cmd_length = cmd_hdr->param_len + BT_HCI_CMD_HDR_SIZE;
+	memcpy(evt_data->cmd_data, hci_cmd_in, evt_data->cmd_length);
 }
 
 static void encode_command_complete_header(uint8_t * const event,
@@ -1799,6 +1831,11 @@ static void cmd_put(uint8_t *cmd_in, uint8_t * const raw_event_out)
 	if (generate_command_status_event ||
 	    (status == BT_HCI_ERR_UNKNOWN_CMD))	{
 		encode_command_status(raw_event_out, opcode, status);
+
+		if(status == BT_HCI_ERR_UNKNOWN_CMD) {
+			encode_vs_command_status(cmd_complete_vs.raw_event, cmd_in, status);
+			cmd_complete_vs.occurred = true;
+		}
 	} else {
 		encode_command_complete_header(raw_event_out, opcode, return_param_length, status);
 	}
@@ -1866,6 +1903,19 @@ int hci_internal_msg_get(uint8_t *msg_out, sdc_hci_msg_type_t *msg_type_out)
 					 &cmd_complete_or_status.raw_event[0],
 					 evt_hdr->len + BT_HCI_EVT_HDR_SIZE);
 		cmd_complete_or_status.occurred = false;
+
+		*msg_type_out = SDC_HCI_MSG_TYPE_EVT;
+
+		return 0;
+	}
+
+	if (cmd_complete_vs.occurred) {
+		struct bt_hci_evt_hdr *evt_hdr = (void *)&cmd_complete_vs.raw_event[0];
+
+		memcpy(msg_out,
+					 &cmd_complete_vs.raw_event[0],
+					 evt_hdr->len + BT_HCI_EVT_HDR_SIZE);
+		cmd_complete_vs.occurred = false;
 
 		*msg_type_out = SDC_HCI_MSG_TYPE_EVT;
 
