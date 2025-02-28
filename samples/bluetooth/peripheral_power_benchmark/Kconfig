@@ -1,0 +1,38 @@
+#
+# Copyright (c) 2025 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+source "Kconfig.zephyr"
+
+menu "Peripheral Power Benchmark tests"
+
+config TEST_ADV_CONNECTABLE
+	bool "Enable non-connectable advertising test"
+
+config TEST_PERIPHERAL_CONNECTION
+	bool "Enable peripheral connection test"
+	default y if !TEST_ADV_CONNECTABLE
+
+config ADVERTISING_INTERVAL_30_MS
+	bool "30 ms adverising interval"
+	default y
+
+config ADVERTISING_INTERVAL_100_MS
+	bool "100 ms adverising interval"
+
+config ADVERTISING_INTERVAL_200_MS
+	bool "200 ms adverising interval"
+
+config ADVERTISING_INTERVAL_2000_MS
+	bool "2000 ms adverising interval"
+
+config ADVERTISING_INTERVAL
+	int "Interval of an advertising in 0.625ms steps"
+	default 48 if ADVERTISING_INTERVAL_30_MS
+	default 160 if ADVERTISING_INTERVAL_100_MS
+	default 320 if ADVERTISING_INTERVAL_200_MS
+	default 3200 if ADVERTISING_INTERVAL_2000_MS
+
+endmenu
