@@ -9,6 +9,7 @@
 #include <mpsl_pm_config.h>
 #include <zephyr/pm/policy.h>
 #include <zephyr/logging/log.h>
+#include <hal/nrf_gpio.h>
 
 #if defined(CONFIG_MPSL_PM_USE_MRAM_LATENCY_SERVICE)
 #include <mram_latency.h>
@@ -61,10 +62,14 @@ static void m_mram_low_latency_release(void);
 
 static void m_update_latency_request(uint32_t lat_value_us)
 {
+	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(0, 3));
+
 	if (m_prev_lat_value_us != lat_value_us) {
 		pm_policy_latency_request_update(&m_latency_req, lat_value_us);
 		m_prev_lat_value_us = lat_value_us;
 	}
+
+	nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(0, 3));
 }
 
 static void m_register_event(void)
@@ -72,8 +77,11 @@ static void m_register_event(void)
 	mpsl_pm_params_t params = {0};
 	bool pm_param_valid = mpsl_pm_params_get(&params);
 
+	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(0, 4));
+
 	if (m_pm_prev_flag_value == params.cnt_flag) {
 		/* We have no new info to process.*/
+		nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(0, 4));
 		return;
 	}
 	if (!pm_param_valid) {
@@ -107,6 +115,8 @@ static void m_register_event(void)
 		__ASSERT(false, "MPSL PM is in an undefined state.");
 	}
 	m_pm_prev_flag_value = params.cnt_flag;
+
+	nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(0, 4));
 }
 
 static void m_register_latency(void)
@@ -163,6 +173,8 @@ static void m_register_latency(void)
 static void m_mram_request_cb(struct onoff_manager *mgr, struct onoff_client *cli, uint32_t state,
 			      int res)
 {
+	nrf_gpio_pin_set(NRF_GPIO_PIN_MAP(0, 7));
+
 	if (res < 0) {
 		/* Possible failure reasons:
 		 *  # -ERRTIMEDOUT - nRFS service timeout
@@ -171,6 +183,8 @@ static void m_mram_request_cb(struct onoff_manager *mgr, struct onoff_client *cl
 		 * All these mean failure for MPSL.
 		 */
 		__ASSERT(false, "MRAM low latency request could not be handled, reason: %d", res);
+		nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(0, 7));
+
 		return;
 	}
 
@@ -180,6 +194,8 @@ static void m_mram_request_cb(struct onoff_manager *mgr, struct onoff_client *cl
 	    (atomic_test_bit(m_low_latency_req_state, LOW_LATENCY_PM_BIT))) {
 		mpsl_pm_low_latency_state_set(MPSL_PM_LOW_LATENCY_STATE_ON);
 	}
+
+	nrf_gpio_pin_clear(NRF_GPIO_PIN_MAP(0, 7));
 }
 
 static void m_mram_low_latency_request(void)
