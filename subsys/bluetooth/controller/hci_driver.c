@@ -351,7 +351,12 @@ static void bt_buf_rx_freed_cb(enum bt_buf_type type_mask)
 
 static int cmd_handle(struct net_buf *cmd)
 {
-	LOG_DBG("");
+	const struct bt_hci_cmd_hdr *hdr = (const struct bt_hci_cmd_hdr *)cmd->data;
+
+	/* Use log leel INF to avoid dropping too many messages */
+	LOG_INF("Received HCI CMD packet (opcode: %#x, len: %u).",
+						sys_le16_to_cpu(hdr->opcode), hdr->param_len);
+
 
 	int errcode = MULTITHREADING_LOCK_ACQUIRE();
 
@@ -371,7 +376,10 @@ static int cmd_handle(struct net_buf *cmd)
 #if defined(CONFIG_BT_CONN)
 static int acl_handle(struct net_buf *acl)
 {
-	LOG_DBG("");
+	const struct bt_hci_acl_hdr *hdr = (const struct bt_hci_acl_hdr *)acl->data;
+
+	LOG_INF("Received HCI ACL packet (handle: %u, len: %u).",
+					sys_le16_to_cpu(hdr->handle), sys_le16_to_cpu(hdr->len));
 
 	int errcode = MULTITHREADING_LOCK_ACQUIRE();
 
@@ -392,7 +400,10 @@ static int acl_handle(struct net_buf *acl)
 #if defined(CONFIG_BT_CTLR_ISO_TX_BUFFERS)
 static int iso_handle(struct net_buf *acl)
 {
-	LOG_DBG("");
+	const struct bt_hci_iso_hdr *hdr = (const struct bt_hci_iso_hdr *)acl->data;
+
+	LOG_INF("Received HCI ISO packet (handle: %u, len: %u).",
+		sys_le16_to_cpu(hdr->handle), sys_le16_to_cpu(hdr->len));
 
 	int errcode = MULTITHREADING_LOCK_ACQUIRE();
 
@@ -421,6 +432,8 @@ static int hci_driver_send(const struct device *dev, struct net_buf *buf)
 		LOG_DBG("Empty HCI packet");
 		return -EINVAL;
 	}
+
+	LOG_INF("buf %p len %u type %u", buf, buf->len, bt_buf_get_type(buf));
 
 	type = bt_buf_get_type(buf);
 	switch (type) {
@@ -576,24 +589,24 @@ static int event_packet_process(const struct device *dev, uint8_t *hci_buf)
 	if (hdr->evt == BT_HCI_EVT_LE_META_EVENT) {
 		struct bt_hci_evt_le_meta_event *me = (void *)&hci_buf[2];
 
-		LOG_DBG("LE Meta Event (0x%02x), len (%u)",
+		LOG_INF("LE Meta Event (0x%02x), len (%u)",
 		       me->subevent, hdr->len);
 	} else if (hdr->evt == BT_HCI_EVT_CMD_COMPLETE) {
 		struct bt_hci_evt_cmd_complete *cc = (void *)&hci_buf[2];
 		struct bt_hci_evt_cc_status *ccs = (void *)&hci_buf[5];
 		uint16_t opcode = sys_le16_to_cpu(cc->opcode);
 
-		LOG_DBG("Command Complete (0x%04x) status: 0x%02x,"
+		LOG_INF("Command Complete (0x%04x) status: 0x%02x,"
 		       " ncmd: %u, len %u",
 		       opcode, ccs->status, cc->ncmd, hdr->len);
 	} else if (hdr->evt == BT_HCI_EVT_CMD_STATUS) {
 		struct bt_hci_evt_cmd_status *cs = (void *)&hci_buf[2];
 		uint16_t opcode = sys_le16_to_cpu(cs->opcode);
 
-		LOG_DBG("Command Status (0x%04x) status: 0x%02x",
+		LOG_INF("Command Status (0x%04x) status: 0x%02x",
 		       opcode, cs->status);
 	} else {
-		LOG_DBG("Event (0x%02x) len %u", hdr->evt, hdr->len);
+		LOG_INF("Event (0x%02x) len %u", hdr->evt, hdr->len);
 	}
 
 	evt_buf = bt_buf_get_evt(hdr->evt, discardable, K_NO_WAIT);
