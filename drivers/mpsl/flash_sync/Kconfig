@@ -16,6 +16,8 @@ config SOC_FLASH_NRF_RADIO_SYNC_MPSL
 	help
 	  Enable synchronization between flash memory driver and MPSL.
 
+endchoice
+
 config SOC_FLASH_NRF_RADIO_SYNC_RPC_HOST
 	bool "Nordic nRFx flash driver synchronized on the application core via RPC"
 	depends on SOC_NRF54H20_CPUAPP
@@ -25,8 +27,6 @@ config SOC_FLASH_NRF_RADIO_SYNC_RPC_HOST
 	help
 	  Enable synchronization between the flash memory driver on the application core
 	  and radio protocols on the radio core using RPC communication.
-
-endchoice
 
 endif
 
