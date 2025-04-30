@@ -1,0 +1,51 @@
+/* 23000000 */
+&cpurad_ram0 {
+	boot_data: memory@0 {
+		reg = <0x0 0x10600>;
+	};
+
+	cpurad_data: memory@10600 {
+		reg = <0x10600 0x1fa00>;
+	};
+};
+
+/* 0xe000000 */
+&cpurad_rx_partitions {
+	compatible = "nordic,owned-partitions", "fixed-partitions";
+	status = "okay";
+	nordic,access = <NRF_OWNER_ID_RADIOCORE NRF_PERM_RXS>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	/delete-node/ partition@54000;
+
+	boot_partition: partition@54000 {
+		label = "mcuboot";
+		reg = <0x54000 0x10000>;
+	};
+
+	slot0_partition: partition@64000 {
+		label = "image-0";
+		reg = <0x64000 0x30000>;
+	};
+};
+
+/{
+	chosen {
+		zephyr,code-partition = &boot_partition;
+		zephyr,flash-controller = &mram1x;
+		zephyr,sram = &boot_data;
+	};
+};
+
+&mram1x {
+	status = "okay";
+};
+
+&cpusec_bellboard {
+	status = "disabled";
+};
+
+&cpusec_cpurad_ipc {
+	status = "disabled";
+};
