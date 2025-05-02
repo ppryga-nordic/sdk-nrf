@@ -183,10 +183,10 @@
  	};
 };
 
-// &cpusec_bellboard {
-// 	status = "disabled";
-// };
+&cpusec_bellboard {
+	status = "disabled";
+};
 
-// &cpusec_cpurad_ipc {
-// 	status = "disabled";
-// };
+&cpusec_cpurad_ipc {
+	status = "disabled";
+};
