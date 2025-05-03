@@ -35,6 +35,8 @@ manifest:
       url-base: https://github.com/boschsensortec
     - name: eembc
       url-base: https://github.com/eembc
+    - name: ppryga
+      url-base: https://github.com/ppryga-nordic
 
   # If not otherwise specified, the projects below should be obtained
   # from the ncs remote.
@@ -64,8 +66,9 @@ manifest:
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/introduction/index.html
     # https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/zephyr/guides/modules.html
     - name: zephyr
+      remote: ppryga
       repo-path: sdk-zephyr
-      revision: d32cb3ceb341a4bc1f123462c484c52b7938caec
+      revision: f48cd4104322fe6be4f613ccb12e350f4a561d70
       import:
         # In addition to the zephyr repository itself, NCS also
         # imports the contents of zephyr/west.yml at the above
@@ -127,7 +130,8 @@ manifest:
           compare-by-default: true
     - name: mcuboot
       repo-path: sdk-mcuboot
-      revision: 9d9d524407df6da0815c79c5b9cf645f1ce25592
+      revision: 88d88492ceb290c9b23f0e1ea2af48d8733af5a4
+      remote: ppryga
       path: bootloader/mcuboot
     - name: qcbor
       url: https://github.com/laurencelundblade/QCBOR
@@ -182,7 +186,7 @@ manifest:
       # Only for internal Nordic development
       repo-path: dragoon.git
       remote: dragoon
-      revision: a37ec029f931d5594fba53f48d0449d5326b536e
+      revision: d527ff1232e9cdb4527332f12049a0466affe9d5
       groups:
         - dragoon
     - name: cjson
