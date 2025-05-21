@@ -8,12 +8,12 @@ source "Kconfig.zephyr"
 
 menu "Peripheral Power Benchmark tests"
 
-config TEST_ADV_CONNECTABLE
+config TEST_ADV_NON_CONNECTABLE
 	bool "Enable non-connectable advertising test"
 
 config TEST_PERIPHERAL_CONNECTION
 	bool "Enable peripheral connection test"
-	default y if !TEST_ADV_CONNECTABLE
+	default y if !TEST_ADV_NON_CONNECTABLE
 
 config ADVERTISING_INTERVAL_30_MS
 	bool "30 ms adverising interval"
