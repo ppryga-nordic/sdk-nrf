@@ -1,0 +1,44 @@
+#
+# Copyright (c) 2025 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+source "Kconfig.zephyr"
+
+menu "Central Power Benchmark tests"
+
+config PERIPHERAL_ADV_NAME
+	string "Remote device name to connect to"
+	default "nRF-PM"
+
+config TEST_SCAN_FILER_ENALBE
+	bool "Enable test application to use scan filer module to find and connect to a test device"
+	select BT_SCAN
+	select BT_SCAN_FILTER_ENABLE
+	default y
+
+config CONNECTION_INTERVAL_100_MS
+	bool "100 ms connection interval"
+
+config CONNECTION_INTERVAL_200_MS
+	bool "200 ms connection interval"
+	default y
+
+config CONNECTION_INTERVAL_1000_MS
+	bool "2000 ms connection interval"
+
+config CONNECTION_INTERVAL
+	int "Interval of connection in 1.25 ms steps"
+	default 80 if CONNECTION_INTERVAL_100_MS
+	default 160 if CONNECTION_INTERVAL_200_MS
+	default 800 if CONNECTION_INTERVAL_1000_MS
+
+config CONNECTION_PHY_1M
+	bool "Enable PHY 1M"
+	default y
+
+config CONNECTION_PHY_2M
+	bool "Enable PHY 2M"
+
+endmenu
