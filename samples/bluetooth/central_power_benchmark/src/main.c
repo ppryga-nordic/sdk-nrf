@@ -29,7 +29,9 @@
 #endif /* CONFIG_CONNECTION_PHY_1M */
 
 static struct bt_conn *default_conn;
-static void change_phy(struct bt_conn *conn);
+
+static void change_phy(struct k_work *work);
+static K_WORK_DEFINE(change_phy_worker, change_phy);
 
 static void scan_filter_match(struct bt_scan_device_info *device_info,
 			      struct bt_scan_filter_match *filter_match, bool connectable)
@@ -122,7 +124,7 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
 
 	printk("Connected: %s\n", addr);
 
-	change_phy(conn);
+	k_work_submit(&change_phy_worker);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -147,8 +149,10 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	}
 }
 
-static void change_phy(struct bt_conn *conn)
+static void change_phy(struct k_work *work)
 {
+	(void)work;
+
 	int err;
 	const struct bt_conn_le_phy_param preferred_phy = {
 		.options = BT_CONN_LE_PHY_OPT_NONE,
@@ -157,7 +161,7 @@ static void change_phy(struct bt_conn *conn)
 	};
 
 	printk("Change PHY to: %d\n", PHY_CONFIG);
-	err = bt_conn_le_phy_update(conn, &preferred_phy);
+	err = bt_conn_le_phy_update(default_conn, &preferred_phy);
 	if (err) {
 		printk("bt_conn_le_phy_update() returned %d", err);
 	}
