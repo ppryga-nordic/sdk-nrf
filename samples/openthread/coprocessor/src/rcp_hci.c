@@ -249,7 +249,7 @@ static void tx_thread(void *p1, void *p2, void *p3)
 
 static int h4_send(struct net_buf *buf)
 {
-	LOG_DBG("buf %p type %u len %u", buf, bt_buf_get_type(buf), buf->len);
+	LOG_DBG("buf %p type %u len %u", buf, buf->data[0], buf->len);
 
 	k_fifo_put(&uart_tx_queue, buf);
 	uart_irq_tx_enable(hci_uart_dev);
