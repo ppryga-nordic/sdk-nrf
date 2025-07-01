@@ -25,7 +25,7 @@ config MPSL_PM_NO_RADIO_EVENT_PERIOD_LATENCY_US
 config MPSL_PM_USE_MRAM_LATENCY_SERVICE
 	bool "Use Zephyr's MRAM latency service"
 	select MRAM_LATENCY
-	default y
+	default n
 	help
 	  This option enables MPSL PM integration with MRAM latency service.
 	  Use of MRAM latency service ensures there is no latency due to code
