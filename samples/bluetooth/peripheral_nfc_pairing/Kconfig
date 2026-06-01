@@ -41,6 +41,42 @@ config NVS
 
 endmenu
 
+menu "Advertising and user confirm"
+
+config PERIPH_NFC_PAIRING_ADV_ON_BOOT
+	bool "Start connectable advertising at boot"
+	default y
+	help
+	  When enabled, the device advertises after Bluetooth initialization.
+	  Use this when NFC must not trigger advertising (see
+	  PERIPH_NFC_PAIRING_ADV_ON_NFC).
+
+config PERIPH_NFC_PAIRING_ADV_ON_NFC
+	bool "Start advertising when the NFC tag is read"
+	default n
+	help
+	  Original sample behavior: connectable advertising starts after an NFC
+	  poller reads the NDEF message. Disable to use NFC only for OOB data
+	  exchange while advertising is controlled separately.
+
+config PERIPH_NFC_PAIRING_ADV_ON_TNEP_OOB
+	bool "Start advertising after TNEP OOB data exchange"
+	default n
+	depends on !PERIPH_NFC_PAIRING_ADV_ON_NFC
+	help
+	  If enabled, advertising starts when OOB data is received over TNEP.
+	  Leave disabled to avoid advertising changes during NFC handover.
+
+config PERIPH_NFC_PAIRING_DK_BUTTON_CONFIRM
+	bool "DK Button 1 confirms pairing / bonding"
+	default y
+	help
+	  Press Button 1 on the DK to accept Numeric Comparison, passkey, or
+	  Just Works pairing (same as the ``pairing confirm`` shell command).
+	  Button 4 still clears all bonds.
+
+endmenu
+
 menu "Zephyr Kernel"
 source "Kconfig.zephyr"
 endmenu

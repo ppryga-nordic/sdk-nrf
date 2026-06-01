@@ -27,17 +27,20 @@
 
 #include <zephyr/settings/settings.h>
 
+/* Runtime SMP pairing method selection; see pairing_mode.h / pairing_mode.c */
+#include "pairing_mode.h"
+
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 
 #define K_POOL_EVENTS_CNT (NFC_TNEP_EVENTS_NUMBER + 1)
 
 #define NDEF_MSG_BUF_SIZE 256
-#define AUTH_SC_FLAG 0x08
 
 #define NFC_FIELD_LED DK_LED2
 #define CON_STATUS_LED DK_LED1
 
+#define KEY_PAIRING_CONFIRM_MASK DK_BTN1_MSK
 #define KEY_BOND_REMOVE_MASK DK_BTN4_MSK
 
 #define NFC_NDEF_LE_OOB_REC_PARSER_BUFF_SIZE 150
@@ -49,6 +52,7 @@ static uint8_t conn_cnt;
 static uint8_t tk_value[NFC_NDEF_LE_OOB_REC_TK_LEN];
 static uint8_t remote_tk_value[NFC_NDEF_LE_OOB_REC_TK_LEN];
 static struct bt_le_oob oob_remote;
+static bool remote_sc_oob_ready;
 
 /* Bonded address queue. */
 K_MSGQ_DEFINE(bonds_queue,
@@ -66,7 +70,9 @@ static struct k_poll_event events[K_POOL_EVENTS_CNT];
 static uint8_t tnep_buffer[NFC_TNEP_BUFFER_SIZE];
 static uint8_t tnep_swap_buffer[NFC_TNEP_BUFFER_SIZE];
 static bool use_remote_tk;
+#if defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_NFC)
 static bool adv_permission;
+#endif
 
 static int tk_value_generate(void)
 {
@@ -160,9 +166,9 @@ static void nfc_callback(void *context,
 	case NFC_T4T_EVENT_FIELD_ON:
 		nfc_tnep_tag_on_selected();
 		dk_set_led_on(NFC_FIELD_LED);
-
+#if defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_NFC)
 		adv_permission = true;
-
+#endif
 		break;
 
 	case NFC_T4T_EVENT_FIELD_OFF:
@@ -171,11 +177,12 @@ static void nfc_callback(void *context,
 		break;
 
 	case NFC_T4T_EVENT_NDEF_READ:
+#if defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_NFC)
 		if (adv_permission) {
 			advertising_start();
 			adv_permission = false;
 		}
-
+#endif
 		break;
 
 	case NFC_T4T_EVENT_NDEF_UPDATED:
@@ -234,13 +241,24 @@ static void adv_handler(struct k_work *work)
 	advertising_continue();
 }
 
-static void auth_cancel(struct bt_conn *conn)
+static bool remote_sc_oob_ready_fn(void)
 {
-	char addr[BT_ADDR_LE_STR_LEN];
+	return remote_sc_oob_ready;
+}
 
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+static bool remote_sc_oob_matches(struct bt_conn *conn)
+{
+	struct bt_conn_info info;
 
-	printk("Pairing cancelled: %s\n", addr);
+	if (!remote_sc_oob_ready) {
+		return false;
+	}
+
+	if (bt_conn_get_info(conn, &info) != 0) {
+		return false;
+	}
+
+	return bt_addr_le_cmp(info.le.remote, &oob_remote.addr) == 0;
 }
 
 static void lesc_oob_data_set(struct bt_conn *conn,
@@ -264,26 +282,35 @@ static void lesc_oob_data_set(struct bt_conn *conn,
 					  ? &oob_remote.le_sc_data
 					  : NULL;
 
-	if (oob_data_remote &&
-	    bt_addr_le_cmp(info.le.remote, &oob_remote.addr)) {
+	if (oob_data_remote && !remote_sc_oob_matches(conn)) {
 		bt_addr_le_to_str(info.le.remote, addr, sizeof(addr));
-		printk("No OOB data available for remote %s", addr);
-		bt_conn_auth_cancel(conn);
-		return;
+		printk("No remote LE SC OOB for %s (use TNEP handover or clear peer OOB)\n",
+		       addr);
+		oob_data_remote = NULL;
 	}
 
 	if (oob_data_local &&
 	    bt_addr_le_cmp(info.le.local, &oob_local.addr)) {
 		bt_addr_le_to_str(info.le.local, addr, sizeof(addr));
-		printk("No OOB data available for local %s", addr);
+		printk("No local OOB data for %s\n", addr);
 		bt_conn_auth_cancel(conn);
 		return;
 	}
 
+	printk("LESC OOB: config %d, local %s, remote %s\n", oob_info->lesc.oob_config,
+	       oob_data_local ? "yes" : "no", oob_data_remote ? "yes" : "no");
+
 	err = bt_le_oob_set_sc_data(conn, oob_data_local, oob_data_remote);
 	if (err) {
-		printk("Error while setting OOB data: %d\n", err);
+		printk("bt_le_oob_set_sc_data failed: %d\n", err);
+		bt_conn_auth_cancel(conn);
 	}
+}
+
+static void remote_sc_oob_clear(void)
+{
+	remote_sc_oob_ready = false;
+	memset(&oob_remote, 0, sizeof(oob_remote));
 }
 
 static void legacy_tk_value_set(struct bt_conn *conn)
@@ -299,20 +326,6 @@ static void legacy_tk_value_set(struct bt_conn *conn)
 	use_remote_tk = false;
 }
 
-static void auth_oob_data_request(struct bt_conn *conn,
-				  struct bt_conn_oob_info *info)
-{
-	if (info->type == BT_CONN_OOB_LE_SC) {
-		printk("LESC OOB data requested\n");
-		lesc_oob_data_set(conn, info);
-	}
-
-	if (info->type == BT_CONN_OOB_LE_LEGACY) {
-		printk("Legacy TK value requested\n");
-		legacy_tk_value_set(conn);
-	}
-}
-
 static void pairing_complete(struct bt_conn *conn, bool bonded)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
@@ -322,8 +335,9 @@ static void pairing_complete(struct bt_conn *conn, bool bonded)
 	printk("Pairing completed: %s, bonded: %d\n", addr, bonded);
 
 	k_poll_signal_raise(&pair_signal, 0);
-	bt_le_oob_set_sc_flag(false);
-	bt_le_oob_set_legacy_flag(false);
+	remote_sc_oob_clear();
+	/* Restore OOB flags for the configured mode (do not leave flags cleared). */
+	pairing_mode_apply();
 }
 
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
@@ -336,26 +350,9 @@ static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 	       bt_security_err_to_str(reason));
 
 	k_poll_signal_raise(&pair_signal, 0);
-	bt_le_oob_set_sc_flag(false);
-	bt_le_oob_set_legacy_flag(false);
+	remote_sc_oob_clear();
+	pairing_mode_apply();
 }
-
-static enum bt_security_err pairing_accept(struct bt_conn *conn,
-				const struct bt_conn_pairing_feat *const feat)
-{
-	if (feat->oob_data_flag && (!(feat->auth_req & AUTH_SC_FLAG))) {
-		bt_le_oob_set_legacy_flag(true);
-	}
-
-	return BT_SECURITY_ERR_SUCCESS;
-
-}
-
-static struct bt_conn_auth_cb conn_auth_callbacks = {
-	.cancel = auth_cancel,
-	.oob_data_request = auth_oob_data_request,
-	.pairing_accept = pairing_accept,
-};
 
 static struct bt_conn_auth_info_cb conn_auth_info_callbacks = {
 	.pairing_complete = pairing_complete,
@@ -403,6 +400,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	}
 
 	printk("Disconnected from %s, reason 0x%02x %s\n", addr, reason, bt_hci_err_to_str(reason));
+	advertising_start();
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
@@ -441,14 +439,13 @@ static int tnep_initial_msg_encode(struct nfc_ndef_msg_desc *msg)
 	memset(&rec_payload, 0, sizeof(rec_payload));
 
 	rec_payload.addr = &oob_local.addr;
-	rec_payload.le_sc_data = &oob_local.le_sc_data;
-	rec_payload.tk_value = tk_value;
 	rec_payload.local_name = bt_get_name();
 	rec_payload.le_role = NFC_NDEF_LE_OOB_REC_LE_ROLE(
 		NFC_NDEF_LE_OOB_REC_LE_ROLE_PERIPH_ONLY);
 	rec_payload.appearance = NFC_NDEF_LE_OOB_REC_APPEARANCE(
 		CONFIG_BT_DEVICE_APPEARANCE);
 	rec_payload.flags = NFC_NDEF_LE_OOB_REC_FLAGS(BT_LE_AD_NO_BREDR);
+	pairing_mode_fill_oob_rec(&rec_payload, &oob_local.le_sc_data, tk_value);
 
 	ch_records.ac = &NFC_NDEF_CH_AC_RECORD_DESC(oob_ac);
 	ch_records.carrier = &NFC_NDEF_LE_OOB_RECORD_DESC(oob_rec);
@@ -531,19 +528,26 @@ static int oob_le_data_handle(const struct nfc_ndef_record_desc *rec,
 		return -EINVAL;
 	}
 
-	if (oob->le_sc_data) {
-		bt_le_oob_set_sc_flag(true);
-		oob_remote.le_sc_data = *oob->le_sc_data;
-		bt_addr_le_copy(&oob_remote.addr, oob->addr);
+	/* Only merge poller OOB into SMP when mode is lesc_oob / legacy_oob. */
+	if (pairing_mode_accepts_remote_oob()) {
+		if (oob->le_sc_data) {
+			oob_remote.le_sc_data = *oob->le_sc_data;
+			bt_addr_le_copy(&oob_remote.addr, oob->addr);
+			remote_sc_oob_ready = true;
+			pairing_mode_apply();
+			printk("Remote LE SC OOB stored; SMP mutual OOB enabled\n");
+		}
+
+		if (oob->tk_value) {
+			bt_le_oob_set_legacy_flag(true);
+			memcpy(remote_tk_value, oob->tk_value, sizeof(remote_tk_value));
+			use_remote_tk = request;
+		}
 	}
 
-	if (oob->tk_value) {
-		bt_le_oob_set_legacy_flag(true);
-		memcpy(remote_tk_value, oob->tk_value, sizeof(remote_tk_value));
-		use_remote_tk = request;
-	}
-
+#if defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_TNEP_OOB)
 	advertising_start();
+#endif
 
 	return 0;
 }
@@ -559,14 +563,13 @@ static int carrier_prepare(void)
 	memset(&rec_payload, 0, sizeof(rec_payload));
 
 	rec_payload.addr = &oob_local.addr;
-	rec_payload.le_sc_data = &oob_local.le_sc_data;
-	rec_payload.tk_value = tk_value;
 	rec_payload.local_name = bt_get_name();
 	rec_payload.le_role = NFC_NDEF_LE_OOB_REC_LE_ROLE(
 		NFC_NDEF_LE_OOB_REC_LE_ROLE_PERIPH_ONLY);
 	rec_payload.appearance = NFC_NDEF_LE_OOB_REC_APPEARANCE(
 		CONFIG_BT_DEVICE_APPEARANCE);
 	rec_payload.flags = NFC_NDEF_LE_OOB_REC_FLAGS(BT_LE_AD_NO_BREDR);
+	pairing_mode_fill_oob_rec(&rec_payload, &oob_local.le_sc_data, tk_value);
 
 	return nfc_tnep_ch_carrier_set(&NFC_NDEF_CH_AC_RECORD_DESC(oob_ac),
 				       &NFC_NDEF_LE_OOB_RECORD_DESC(oob_rec),
@@ -576,7 +579,10 @@ static int carrier_prepare(void)
 #if defined(CONFIG_NFC_TAG_CH_REQUESTER)
 static int tnep_ch_request_prepare(void)
 {
+#if defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_NFC) || \
+	defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_TNEP_OOB)
 	bt_le_adv_stop();
+#endif
 	return carrier_prepare();
 }
 
@@ -625,7 +631,10 @@ static int tnep_ch_request_received(const struct nfc_tnep_ch_request *ch_req)
 		return err;
 	}
 
+#if defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_NFC) || \
+	defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_TNEP_OOB)
 	bt_le_adv_stop();
+#endif
 
 	err = oob_le_data_handle(oob_data, true);
 	if (err) {
@@ -691,10 +700,36 @@ static void nfc_init(void)
 	printk("NFC configuration done\n");
 }
 
+/* Called from pairing_mode_set() to align NFC NDEF with the active pairing mode. */
+int pairing_mode_nfc_refresh(void)
+{
+	int err;
+
+	err = paring_key_generate();
+	if (err) {
+		return err;
+	}
+
+	return nfc_tnep_tag_initial_msg_create(2, tnep_initial_msg_encode);
+}
+
 void button_changed(uint32_t button_state, uint32_t has_changed)
 {
 	int err;
 	uint32_t buttons = button_state & has_changed;
+
+#if defined(CONFIG_PERIPH_NFC_PAIRING_DK_BUTTON_CONFIRM)
+	if (buttons & KEY_PAIRING_CONFIRM_MASK) {
+		err = pairing_mode_user_confirm();
+		if (err == -ENOENT) {
+			printk("Button 1: no pairing awaiting confirm\n");
+		} else if (err) {
+			printk("Button 1: pairing confirm failed (%d)\n", err);
+		} else {
+			printk("Button 1: pairing confirmed\n");
+		}
+	}
+#endif
 
 	if (buttons & KEY_BOND_REMOVE_MASK) {
 		err = bt_unpair(BT_ID_DEFAULT, NULL);
@@ -725,12 +760,6 @@ int main(void)
 		printk("Cannot init buttons (err %d\n", err);
 	}
 
-	err = bt_conn_auth_cb_register(&conn_auth_callbacks);
-	if (err) {
-		printk("Failed to register authorization callbacks.\n");
-		return 0;
-	}
-
 	err = bt_conn_auth_info_cb_register(&conn_auth_info_callbacks);
 	if (err) {
 		printk("Failed to register authorization info callbacks.\n");
@@ -754,9 +783,37 @@ int main(void)
 		return 0;
 	}
 
+	/* OOB secrets for auth_oob_data_request; default mode is lesc_oob. */
+	err = pairing_mode_init(&(struct pairing_mode_oob_ops){
+		.lesc_oob_set = lesc_oob_data_set,
+		.legacy_tk_set = legacy_tk_value_set,
+		.remote_sc_oob_matches = remote_sc_oob_matches,
+		.remote_sc_oob_ready = remote_sc_oob_ready_fn,
+	});
+	if (err) {
+		printk("Pairing mode init failed (err %d)\n", err);
+		return 0;
+	}
+
+#if defined(CONFIG_SHELL)
+	pairing_mode_shell_init();
+	printk("Pairing shell: 'pairing list', 'pairing set <mode>', 'pairing show'\n");
+#endif
+
 	k_work_init(&adv_work, adv_handler);
 	pair_key_generate_init();
 	nfc_init();
+
+	(void)pairing_mode_nfc_refresh();
+
+#if defined(CONFIG_PERIPH_NFC_PAIRING_ADV_ON_BOOT)
+	advertising_start();
+	printk("Connectable advertising started (not triggered by NFC)\n");
+#endif
+
+#if defined(CONFIG_PERIPH_NFC_PAIRING_DK_BUTTON_CONFIRM)
+	printk("Press Button 1 to confirm pairing when prompted\n");
+#endif
 
 	for (;;) {
 		k_poll(events, ARRAY_SIZE(events), K_FOREVER);

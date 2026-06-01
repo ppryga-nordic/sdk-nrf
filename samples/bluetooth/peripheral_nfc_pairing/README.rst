@@ -77,12 +77,52 @@ You can change the default role by choosing ``CONFIG_NFC_TAG_CH_SELECTOR`` or ``
 .. figure:: images/nfc_negotiated_connection_handover.svg
    :alt: Negotiated Handover
 
+Runtime pairing mode selection
+==============================
+
+When built with the serial shell enabled (default in :file:`prj.conf`), pairing
+behavior can be changed at runtime without rebooting Bluetooth. The selected
+mode stays active until another mode is configured.
+
+Shell commands:
+
+* ``pairing list`` — list mode names
+* ``pairing show`` — show the active mode
+* ``pairing set <mode>`` — select a mode (refreshes the NFC handover message)
+* ``pairing confirm`` — confirm Numeric Comparison, passkey, or Just Works
+* ``pairing passkey <000000-999999>`` — enter a passkey when acting as input
+
+Mode names:
+
+* ``lesc_jw`` — LE Secure Connections Just Works
+* ``lesc_oob`` — LE Secure Connections OOB (default, NFC)
+* ``legacy_jw`` — Legacy Just Works
+* ``legacy_oob`` — Legacy OOB
+* ``lesc_numeric`` — LE Secure Connections Numeric Comparison
+* ``lesc_pk_input`` — LE Secure Connections Passkey Entry (console input)
+* ``lesc_pk_display`` — LE Secure Connections Passkey Display
+
+Advertising and NFC
+===================
+
+By default (:kconfig:option:`CONFIG_PERIPH_NFC_PAIRING_ADV_ON_BOOT`) the device
+starts connectable advertising at boot. NFC does **not** start advertising
+(:kconfig:option:`CONFIG_PERIPH_NFC_PAIRING_ADV_ON_NFC` is off). Use NFC only to
+exchange OOB pairing data while the peer connects to the ongoing advertisement.
+
+To restore the original touch-to-pair behavior (advertise after the tag is
+read), set ``CONFIG_PERIPH_NFC_PAIRING_ADV_ON_NFC=y`` and disable
+``CONFIG_PERIPH_NFC_PAIRING_ADV_ON_BOOT``.
+
 User interface
 **************
 
 .. tabs::
 
    .. group-tab:: nRF52 and nRF53 DKs
+
+      Button 1:
+         Confirms pairing when the log prompts for it (same as ``pairing confirm``).
 
       Button 4:
          Removes all bonded devices and terminates current connections.
@@ -94,6 +134,9 @@ User interface
          Indicates that an NFC field is present.
 
    .. group-tab:: nRF54 DKs
+
+      Button 1:
+         Confirms pairing when the log prompts for it.
 
       Button 3:
          Removes all bonded devices and terminates current connections.
