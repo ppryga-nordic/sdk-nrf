@@ -22,8 +22,40 @@
 
 #include <dk_buttons_and_leds.h>
 
+#include <sdc_asserts.h>
+
+#if IS_ENABLED(CONFIG_IPT_INITIATOR_SDC_ASSERT_OUTPUT_FLASH)
+#include "sdc_assert_flash.h"
+#endif
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app_main, LOG_LEVEL_INF);
+
+static void m_log_sdc_assert(char *file, uint32_t line)
+{
+	uint32_t file_id = atoi(file);
+
+	LOG_ERR("SoftDevice Controller ASSERT: %s, 0x%04x", file, line);
+
+	for (uint32_t i = 0; i < ARRAY_SIZE(sdc_assert_messages); i++) {
+		if (sdc_assert_messages[i].file_id == file_id &&
+		    sdc_assert_messages[i].line == line) {
+			LOG_ERR("ASSERT REASON: %s", sdc_assert_messages[i].assert_msg);
+			break;
+		}
+	}
+}
+
+void bt_ctlr_assert_handle(char *file, uint32_t line)
+{
+#if IS_ENABLED(CONFIG_IPT_INITIATOR_SDC_ASSERT_OUTPUT_FLASH)
+	sdc_assert_flash_store(file, line);
+#else
+	m_log_sdc_assert(file, line);
+#endif
+
+	k_oops();
+}
 
 #define CON_STATUS_LED	 DK_LED1
 #define CS_CONFIG_ID	 0
@@ -571,6 +603,10 @@ int main(void)
 	int err;
 
 	LOG_INF("Starting Channel Sounding IPT Initiator Sample");
+
+// #if IS_ENABLED(CONFIG_IPT_INITIATOR_SDC_ASSERT_OUTPUT_FLASH)
+// 	sdc_assert_flash_report_stored();
+// #endif
 
 	dk_leds_init();
 

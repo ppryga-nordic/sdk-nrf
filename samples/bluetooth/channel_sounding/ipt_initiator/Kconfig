@@ -1,0 +1,25 @@
+#
+# Copyright (c) 2026 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "Channel Sounding IPT Initiator sample"
+
+choice IPT_INITIATOR_SDC_ASSERT_OUTPUT
+	prompt "SDC assert output (temporary test option)"
+	default IPT_INITIATOR_SDC_ASSERT_OUTPUT_UART
+	depends on BT_CTLR_ASSERT_HANDLER
+
+config IPT_INITIATOR_SDC_ASSERT_OUTPUT_UART
+	bool "Log SDC asserts on UART"
+
+config IPT_INITIATOR_SDC_ASSERT_OUTPUT_FLASH
+	bool "Store SDC asserts in flash"
+	depends on SOC_COMPATIBLE_NRF54LX
+
+endchoice
+
+endmenu
+
+source "Kconfig.zephyr"
